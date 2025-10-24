@@ -16,15 +16,11 @@ const transporter = nodemailer.createTransport({
 
 // Changed exports.sendEmail → export const sendEmail
 export const sendEmail = async (to, subject, text, html) => {
-  try {
-    await transporter.sendMail({
-      from: `"COSMIC GAME LOGIC" <${process.env.EMAIL_USER}>`,
-      to,
-      subject,
-      text,
-      html,
-    });
-  } catch (error) {
-    console.error(`❌ Email sending failed: ${error.message}`);
-  }
+  await transporter.sendMail({
+    from: `"COSMIC GAME LOGIC" <${process.env.EMAIL_USER}>`,
+    to,
+    subject,
+    text,
+    html,
+  });
 };

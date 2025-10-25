@@ -1,27 +1,30 @@
 // src/server.js
-import http from "http";
+import express from "express";
+import cors from "cors";
+import dotenv from "dotenv";
 import { connectDB } from "./config/db.js";
 import bookRoutes from "./routes/book.routes.js";
 import authRoutes from "./routes/auth.routes.js";
-import express from "express";
-import dotenv from "dotenv";
-import cors from "cors";
 
 dotenv.config();
 
-const PORT = process.env.PORT || 4000;
 const app = express();
 
-app.use(cors({ origin: "*" }));
+// If you need credentials/cookies, set a specific origin and credentials: true
+app.use(
+  cors({
+    origin: "*",
+    methods: ["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
+    allowedHeaders: ["Content-Type", "Authorization"],
+  })
+);
+// (Optional but nice) fast-path OPTIONS for any route
+app.options("*", cors());
+
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
-// app.use((req, res, _next) => {
-//   res.status(404).json({ error: "Not Found", path: req.originalUrl });
-// });
-
 app.get("/", (_req, res) => {
-  console.log("request", _req);
   res.status(200).json({
     status: "OK",
     service: "CGL Backend",
@@ -34,43 +37,27 @@ app.get("/", (_req, res) => {
 app.use("/api/books", bookRoutes);
 app.use("/api/user", authRoutes);
 
-async function start() {
-  console.log("\n================= CGL BACKEND =================");
-  await connectDB(); // ensure DB ready before starting HTTP
-  app.listen(PORT, () => {
-    console.log(`[CGL] Server listening on http://localhost:${PORT}`);
-  });
+// Connect DB once on cold start (serverless safe)
+let dbReady;
+async function ensureDB() {
+  if (!dbReady) dbReady = connectDB();
+  await dbReady;
 }
-
-start().catch((e) => {
-  console.error("[CGL] Fatal startup error:", e);
-  process.exit(1);
-});
-
-process.on("unhandledRejection", (reason) => {
-  console.error("[PROC] Unhandled Rejection:", reason);
-});
-
-process.on("uncaughtException", (err) => {
-  console.error("[PROC] Uncaught Exception:", err);
-  process.exit(1);
-});
-
-function gracefulShutdown(signal) {
-  console.log(`[PROC] ${signal} received: closing server...`);
-  if (server) {
-    server.close(() => {
-      console.log("[PROC] HTTP server closed.");
-      process.exit(0);
-    });
-    // Force exit if not closed in time
-    setTimeout(() => {
-      console.warn("[PROC] Force exit after timeout.");
-      process.exit(1);
-    }, 5000).unref();
-  } else {
-    process.exit(0);
+app.use(async (_req, _res, next) => {
+  try {
+    await ensureDB();
+    next();
+  } catch (e) {
+    next(e);
   }
+});
+
+// ❗ Do NOT call app.listen() on Vercel.
+// Export the app so @vercel/node can invoke it per request.
+export default app;
+
+// (Optional) local dev entrypoint
+if (process.env.NODE_ENV !== "production") {
+  const PORT = process.env.PORT || 4000;
+  app.listen(PORT, () => console.log(`[CGL] Server listening on http://localhost:${PORT}`));
 }
-process.on("SIGINT", () => gracefulShutdown("SIGINT"));
-process.on("SIGTERM", () => gracefulShutdown("SIGTERM"));

@@ -2,22 +2,26 @@
 import http from "http";
 import { connectDB } from "./config/db.js";
 import bookRoutes from "./routes/book.routes.js";
-import cors from "cors";
+import authRoutes from "./routes/auth.routes.js";
 import express from "express";
+import dotenv from "dotenv";
+import cors from "cors";
 
-const app = express();
-
-// Core middleware
-app.use(cors());
-app.use(express.json({ limit: "1mb" }));
+dotenv.config();
 
 const PORT = process.env.PORT || 4000;
+const app = express();
 
-app.use((req, res, _next) => {
-  res.status(404).json({ error: "Not Found", path: req.originalUrl });
-});
+app.use(cors({ origin: "*" }));
+app.use(express.json());
+app.use(express.urlencoded({ extended: true }));
+
+// app.use((req, res, _next) => {
+//   res.status(404).json({ error: "Not Found", path: req.originalUrl });
+// });
 
 app.get("/", (_req, res) => {
+  console.log("request", _req);
   res.status(200).json({
     status: "OK",
     service: "CGL Backend",
@@ -28,12 +32,12 @@ app.get("/", (_req, res) => {
 
 // ---------- Feature Routes ----------
 app.use("/api/books", bookRoutes);
+app.use("/api/user", authRoutes);
 
 async function start() {
   console.log("\n================= CGL BACKEND =================");
   await connectDB(); // ensure DB ready before starting HTTP
-  const server = http.createServer(app);
-  server.listen(PORT, () => {
+  app.listen(PORT, () => {
     console.log(`[CGL] Server listening on http://localhost:${PORT}`);
   });
 }

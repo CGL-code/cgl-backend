@@ -3,7 +3,6 @@ import http from "http";
 import { connectDB } from "./config/db.js";
 import bookRoutes from "./routes/book.routes.js";
 import cors from "cors";
-import morgan from "morgan";
 import express from "express";
 
 const app = express();
@@ -11,7 +10,6 @@ const app = express();
 // Core middleware
 app.use(cors());
 app.use(express.json({ limit: "1mb" }));
-app.use(morgan(process.env.LOG_LEVEL || "dev"));
 
 const PORT = process.env.PORT || 4000;
 

@@ -13,9 +13,10 @@ const app = express();
 // If you need credentials/cookies, set a specific origin and credentials: true
 app.use(
   cors({
-    origin: "*",
+    origin: ['http://localhost:5173', 'https://dev-cgl-fe.vercel.app'],
     methods: ["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
     allowedHeaders: ["Content-Type", "Authorization"],
+    credentials:true
   })
 );
 // (Optional but nice) fast-path OPTIONS for any route

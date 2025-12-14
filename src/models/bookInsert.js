@@ -1,19 +1,16 @@
-// backend/src/models/bookInsert.js
 import mongoose from "mongoose";
 
 const { Schema } = mongoose;
 
 /**
- * BookInsert Schema (v2 – simplified)
- * - Tool to capture deliberate insertion of a missing book.
- * - Not part of regular day-to-day book entry.
- * - User only chooses reference book; system computes new M/S numbers.
+ * BookInsert Schema
+ * - Captures deliberate insertion planning
+ * - Acts as an audit log (NOT an actual book)
  */
 
 const BookInsertSchema = new Schema(
   {
-    // ---- Reference point in existing list (user chooses this) ----
-    // The existing book AFTER which we are inserting.
+    // ---- Reference book (chosen by user) ----
     refMBookNo: {
       type: Number,
       required: true,
@@ -23,8 +20,13 @@ const BookInsertSchema = new Schema(
       required: true,
     },
 
-    // ---- Resulting new book number (system fills this, NOT the user) ----
-    // These are calculated by backend after Save1.
+    // Reference book title (for history / clarity)
+    refBookTitle: {
+      type: String,
+      trim: true,
+    },
+
+    // ---- Calculated new numbers (system generated) ----
     mBookNo: {
       type: Number,
       required: true,
@@ -34,21 +36,26 @@ const BookInsertSchema = new Schema(
       required: true,
     },
 
-    // ---- Core insert info (minimal) ----
-    // Title is captured here so the insert record is self-explanatory.
+    // ---- New book info ----
     title: {
       type: String,
       required: true,
       trim: true,
     },
+
+    // Reason for insertion
+    reason: {
+      type: String,
+      trim: true,
+    },
   },
   {
-    timestamps: true, // createdAt, updatedAt (for history)
+    timestamps: true,
   }
 );
 
-// Ensure numeric fields are clean integers
-BookInsertSchema.pre("save", function onSave(next) {
+// Ensure numeric fields are integers
+BookInsertSchema.pre("save", function (next) {
   ["refMBookNo", "refSBookNo", "mBookNo", "sBookNo"].forEach((field) => {
     if (typeof this[field] === "number") {
       this[field] = Math.trunc(this[field]);
@@ -58,6 +65,7 @@ BookInsertSchema.pre("save", function onSave(next) {
 });
 
 const BookInsert =
-  mongoose.models.BookInsert || mongoose.model("BookInsert", BookInsertSchema);
+  mongoose.models.BookInsert ||
+  mongoose.model("BookInsert", BookInsertSchema);
 
 export default BookInsert;

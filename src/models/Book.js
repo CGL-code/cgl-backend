@@ -1,105 +1,59 @@
-// backend/src/models/book.js
 import mongoose from "mongoose";
+import slugify from "slugify";
 
 const { Schema } = mongoose;
 
-/**
- * Book Schema (NEW – CGL)
- * - Focused on actual books only.
- * - No recordNo, no legacy bookNo.
- * - Uses M.BookNo + S.BookNo as the primary sequence keys.
- */
-
 const BookSchema = new Schema(
   {
-    // ---- How this book was created (for reference only) ----
-    // "regular" = normal planned book
-    // "deliberate" = inserted into existing sequence
-    // "system" / "import" reserved for future
     typeOfEntry: {
       type: String,
       enum: ["regular", "deliberate", "system", "import"],
       default: "regular",
     },
+    insertPlanId: {
+  type: mongoose.Schema.Types.ObjectId,
+  ref: "BookInsert",
+},
 
-    // ---- New numbering system ----
-    // M.BookNo and S.BookNo are the heart of your sequence logic.
-    mBookNo: {
-      type: Number,
-      required: true,
-      index: true,
-    },
-    sBookNo: {
-      type: Number,
-      required: true,
-      default: 0,
-      index: true,
-    },
-
-    // ---- Core content ----
-    title: {
-      type: String,
-      required: true,
-      trim: true,
-    },
-    introParas: {
-      type: String,
-      default: "",
-      trim: true,
-    },
-
-    // ---- Grouping / classification ----
-    bookGroupNo: {
-      type: Number,
-      default: 0,
-    },
-    btCode: {
-      type: String,
-      trim: true,
-      default: "CGL",
-    },
-
-    // ---- Flags / tags ----
-    isActive: {
-      type: Boolean,
-      default: true,
-    },
-    tags: [
-      {
-        type: String,
-        trim: true,
-      },
-    ],
-
-    // ---- Meta ----
-    meta: {
-      createdBy: { type: String, default: "" },
-      updatedBy: { type: String, default: "" },
-    },
+    mBookNo: { type: Number, required: true, index: true },
+    sBookNo: { type: Number, required: true, default: 0, index: true },
+    title: { type: String, required: true, trim: true },
+    introParas: { type: String, default: "", trim: true },
+    bookGroupNo: { type: Number, default: 0 },
+    btCode: { type: String, trim: true, default: "CGL" },
+    isActive: { type: Boolean, default: true },
+    tags: [{ type: String, trim: true }],
+    slug: { type: String, unique: true, sparse: true },
+    meta: { createdBy: { type: String, default: "" }, updatedBy: { type: String, default: "" } },
   },
-  {
-    timestamps: true,
-    toJSON: { virtuals: true },
-    toObject: { virtuals: true },
-  }
+  { timestamps: true, toJSON: { virtuals: true }, toObject: { virtuals: true } }
 );
 
-// Virtual label "M.S" (example: 12.5)
-BookSchema.virtual("bookLabel").get(function bookLabel() {
-  const m = Number.isFinite(this.mBookNo) ? this.mBookNo : 0;
-  const s = Number.isFinite(this.sBookNo) ? this.sBookNo : 0;
-  return `${m}.${s}`;
+BookSchema.virtual("bookLabel").get(function () {
+  return `${this.mBookNo}.${this.sBookNo}`;
 });
 
-// Ensure (M,S) pair is unique across all books.
 BookSchema.index({ mBookNo: 1, sBookNo: 1 }, { unique: true, sparse: true });
 
-// Optional: clean integer values
-BookSchema.pre("save", function onSave(next) {
+// Pre-save hook to generate slug
+BookSchema.pre("save", async function (next) {
   if (typeof this.mBookNo === "number") this.mBookNo = Math.trunc(this.mBookNo);
   if (typeof this.sBookNo === "number") this.sBookNo = Math.trunc(this.sBookNo);
-  if (typeof this.bookGroupNo === "number")
-    this.bookGroupNo = Math.trunc(this.bookGroupNo);
+  if (typeof this.bookGroupNo === "number") this.bookGroupNo = Math.trunc(this.bookGroupNo);
+
+  if (!this.slug && this.title) {
+    let baseSlug = slugify(this.title, { lower: true, strict: true });
+    let slug = baseSlug;
+    let counter = 1;
+
+    // Ensure uniqueness
+    while (await mongoose.models.Book.findOne({ slug })) {
+      slug = `${baseSlug}-${counter}`;
+      counter++;
+    }
+    this.slug = slug;
+  }
+
   next();
 });
 

@@ -1,24 +1,23 @@
-// Converted require → import
 import express from "express";
 import {
-  createBook,
-  getAllBooks,
-  getBookNamesOnly,
-  getBookBySlug,
-  updateBook,
-  deleteBook,
-  getBooksWithChapters,
+  saveInsertPlan,
+  saveBook,
+  getNextRegular,
+  listBooks,
 } from "../controllers/bookController.js";
 
 const router = express.Router();
 
-// Routes
-router.get("/with-chapters", getBooksWithChapters);
-router.post("/create", createBook);
-router.get("/list", getAllBooks);
-router.get("/names", getBookNamesOnly);
-router.get("/:slug", getBookBySlug); // using slug instead of id
-router.put("/update/:slug", updateBook); // using slug
-router.delete("/delete/:slug", deleteBook); // using slug
+// Deliberate insert plan
+router.post("/book-inserts/plan", saveInsertPlan);
+
+// Save book (regular or insert)
+router.post("/books", saveBook);
+
+// Get next regular M/S numbers
+router.get("/books/next-regular", getNextRegular);
+
+// Optional: List all books
+router.get("/books", listBooks);
 
 export default router;

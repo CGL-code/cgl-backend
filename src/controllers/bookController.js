@@ -1,162 +1,233 @@
-import Book from "../models/Book.js";
-import Chapter from "../models/Chapter.js";
-import { getNextRecordNumber } from "../services/book.service.js";
+import Book from "../models/book.js";
+import BookInsert from "../models/bookInsert.js";
 import slugify from "slugify";
 
-// Create Book
-export const createBook = async (req, res) => {
+/* =========================================================
+   Helper: Get Next Regular Numbers
+   ========================================================= */
+const getNextRegularNumbers = async () => {
+  const lastBook = await Book.findOne({ typeOfEntry: "regular" })
+    .sort({ mBookNo: -1, sBookNo: -1 })
+    .lean();
+
+  if (!lastBook) {
+    return { mBookNo: 1, sBookNo: 1 };
+  }
+
+  return {
+    mBookNo: lastBook.mBookNo + 5,
+    sBookNo: lastBook.sBookNo + 5,
+  };
+};
+
+/* =========================================================
+   Helper: Calculate Deliberate Insert Numbers
+   ========================================================= */
+const calculateInsertNumbers = async (refMBookNo, refSBookNo) => {
+  const refBook = await Book.findOne({
+    mBookNo: refMBookNo,
+    sBookNo: refSBookNo,
+  }).lean();
+
+  if (!refBook) {
+    throw new Error("Reference book not found.");
+  }
+
+  const newMBookNo = refBook.mBookNo + 1;
+  const newSBookNo = refBook.sBookNo + 1;
+
+  const nextBook = await Book.findOne({
+    $or: [
+      { mBookNo: { $gt: refMBookNo } },
+      {
+        mBookNo: refMBookNo,
+        sBookNo: { $gt: refSBookNo },
+      },
+    ],
+  })
+    .sort({ mBookNo: 1, sBookNo: 1 })
+    .lean();
+
+  let warning = false;
+  if (
+    nextBook &&
+    (newMBookNo > nextBook.mBookNo ||
+      (newMBookNo === nextBook.mBookNo &&
+        newSBookNo >= nextBook.sBookNo))
+  ) {
+    warning = true;
+  }
+
+  return {
+    warning,
+    mBookNo: newMBookNo,
+    sBookNo: newSBookNo,
+    refBookTitle: refBook.title,
+  };
+};
+
+/* =========================================================
+   SAVE 01 – Deliberate Insert Plan
+   ========================================================= */
+export const saveInsertPlan = async (req, res) => {
   try {
     const {
-      auto,
-      recordNumber,
-      bookNumber,
-      bookName,
-      groupType,
-      tagMainVersionId,
-      tagVersionHId,
-      tagVersionEId,
-      briefIntroGroupType,
-      briefIntroMainVersionId,
-      briefIntroVersionHId,
-      briefIntroVersionEId,
-      briefIntroduction,
-      authorNotes,
-      status, // optional during creation
+      refMBookNo,
+      refSBookNo,
+      title,
+      reason,
+      refBookTitle,
     } = req.body;
 
-    let finalRecordNumber;
-    if (auto) {
-      finalRecordNumber = await getNextRecordNumber();
-    } else {
-      const manualRecord = parseFloat(recordNumber);
-      if (isNaN(manualRecord)) {
-        return res.status(400).json({ message: "Manual record number must be a valid number." });
-      }
-
-      const existingBook = await Book.findOne({ recordNumber: manualRecord.toFixed(2) });
-      if (existingBook) {
-        return res.status(400).json({ message: "This record number already exists." });
-      }
-      finalRecordNumber = manualRecord.toFixed(2);
+    if (
+      refMBookNo === undefined ||
+      refSBookNo === undefined ||
+      !title
+    ) {
+      return res.status(400).json({
+        error: "Required fields missing",
+      });
     }
 
-    const slug = slugify(bookName, { lower: true, strict: true });
-
-    const newBook = new Book({
-      recordNumber: finalRecordNumber,
-      bookNumber,
-      bookName,
-      slug,
-      groupType,
-      tagMainVersionId,
-      tagVersionHId,
-      tagVersionEId,
-      briefIntroGroupType,
-      briefIntroMainVersionId,
-      briefIntroVersionHId,
-      briefIntroVersionEId,
-      briefIntroduction,
-      authorNotes,
-      status: status && ["DRAFT", "ARCHIVE", "PUBLISHED"].includes(status) ? status : "DRAFT",
-    });
-
-    await newBook.save();
-    res.status(201).json({ message: "Book created successfully", book: newBook });
-  } catch (error) {
-    res.status(500).json({ error: error.message });
-  }
-};
-
-// Get all books
-export const getAllBooks = async (req, res) => {
-  try {
-    const books = await Book.find();
-    res.status(200).json(books);
-  } catch (error) {
-    res.status(500).json({ error: error.message });
-  }
-};
-
-// Get only book names
-export const getBookNamesOnly = async (req, res) => {
-  try {
-    const bookNames = await Book.find().select("bookName -_id");
-    res.status(200).json(bookNames);
-  } catch (error) {
-    res.status(500).json({ error: error.message });
-  }
-};
-
-// Get book by slug
-export const getBookBySlug = async (req, res) => {
-  try {
-    const book = await Book.findOne({ slug: req.params.slug });
-    if (!book) return res.status(404).json({ message: "Book not found" });
-    res.status(200).json(book);
-  } catch (error) {
-    res.status(500).json({ error: error.message });
-  }
-};
-
-// Update book by slug
-export const updateBook = async (req, res) => {
-  try {
-    const { bookName, status } = req.body;
-
-    if (bookName) {
-      req.body.slug = slugify(bookName, { lower: true, strict: true });
-    }
-
-    // Validate status if provided
-    if (status && !["DRAFT", "ARCHIVE", "PUBLISHED"].includes(status)) {
-      return res.status(400).json({ message: "Invalid status value" });
-    }
-
-    const updatedBook = await Book.findOneAndUpdate(
-      { slug: req.params.slug },
-      req.body,
-      { new: true, runValidators: true }
+    const insertCalc = await calculateInsertNumbers(
+      refMBookNo,
+      refSBookNo
     );
 
-    if (!updatedBook) return res.status(404).json({ message: "Book not found" });
+    const insertPlan = new BookInsert({
+      refMBookNo,
+      refSBookNo,
+      refBookTitle: refBookTitle || insertCalc.refBookTitle,
+      mBookNo: insertCalc.mBookNo,
+      sBookNo: insertCalc.sBookNo,
+      title,
+      reason,
+    });
 
-    res.status(200).json({ message: "Book updated successfully", book: updatedBook });
-  } catch (error) {
-    res.status(500).json({ error: error.message });
+    await insertPlan.save();
+
+    res.json({
+      insertPlanId: insertPlan._id,
+      mBookNo: insertCalc.mBookNo,
+      sBookNo: insertCalc.sBookNo,
+      title,
+      warning: insertCalc.warning,
+    });
+  } catch (err) {
+    console.error("Error in saveInsertPlan:", err.message);
+    res.status(500).json({
+      error: err.message || "Failed to calculate insert location",
+    });
   }
 };
 
-// Delete book by slug
-export const deleteBook = async (req, res) => {
+/* =========================================================
+   SAVE 02 – Save Book
+   ========================================================= */
+export const saveBook = async (req, res) => {
   try {
-    const deletedBook = await Book.findOneAndDelete({ slug: req.params.slug });
-    if (!deletedBook) return res.status(404).json({ message: "Book not found" });
-    res.status(200).json({ message: "Book deleted successfully" });
-  } catch (error) {
-    res.status(500).json({ error: error.message });
+    const {
+      typeOfEntry,
+      mBookNo,
+      sBookNo,
+      bookGroupNo,
+      title,
+      introParas,
+    } = req.body;
+
+    if (
+      mBookNo === undefined ||
+      sBookNo === undefined ||
+      !title
+    ) {
+      return res.status(400).json({
+        error: "Required fields missing",
+      });
+    }
+
+    if (introParas && introParas.split(" ").length > 1000) {
+      return res.status(400).json({
+        error: "Introduction cannot exceed 1000 words",
+      });
+    }
+
+    const existingBook = await Book.findOne({
+      mBookNo,
+      sBookNo,
+    });
+
+    if (existingBook) {
+      return res.status(400).json({
+        error: "M/S Book No already exists",
+      });
+    }
+
+    let baseSlug = slugify(title, {
+      lower: true,
+      strict: true,
+    });
+
+    let slug = baseSlug;
+    let counter = 1;
+
+    while (await Book.findOne({ slug })) {
+      slug = `${baseSlug}-${counter}`;
+      counter++;
+    }
+
+    const book = new Book({
+      typeOfEntry: typeOfEntry || "regular",
+      mBookNo: Number(mBookNo),
+      sBookNo: Number(sBookNo),
+      bookGroupNo: Number(bookGroupNo) || 0,
+      title,
+      introParas: introParas || "",
+      slug,
+    });
+
+    await book.save();
+
+    res.json({
+      message: "Book saved successfully",
+      book,
+    });
+  } catch (err) {
+    console.error("Error in saveBook:", err.message);
+    res.status(500).json({
+      error: "Failed to save book",
+    });
   }
 };
 
-// Get books with chapters
-export const getBooksWithChapters = async (req, res) => {
+/* =========================================================
+   Get Next Regular Numbers
+   ========================================================= */
+export const getNextRegular = async (req, res) => {
   try {
-    const books = await Book.find({}).lean();
-    const chapters = await Chapter.find({}).lean();
+    const next = await getNextRegularNumbers();
+    res.json(next);
+  } catch (err) {
+    console.error("Error in getNextRegular:", err.message);
+    res.status(500).json({
+      error: "Failed to get next regular numbers",
+    });
+  }
+};
 
-    const chaptersMap = chapters.reduce((acc, chapter) => {
-      if (!acc[chapter.bookId]) acc[chapter.bookId] = [];
-      acc[chapter.bookId].push(chapter);
-      return acc;
-    }, {});
+/* =========================================================
+   List All Books
+   ========================================================= */
+export const listBooks = async (req, res) => {
+  try {
+    const books = await Book.find()
+      .sort({ mBookNo: 1, sBookNo: 1 })
+      .lean();
 
-    const booksWithChapters = books.map((book) => ({
-      ...book,
-      chapters: chaptersMap[book._id] || [],
-    }));
-
-    res.status(200).json(booksWithChapters);
-  } catch (error) {
-    console.error("Error fetching books with chapters:", error);
-    res.status(500).json({ message: "Server error" });
+    res.json(books);
+  } catch (err) {
+    console.error("Error in listBooks:", err.message);
+    res.status(500).json({
+      error: "Failed to list books",
+    });
   }
 };

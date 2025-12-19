@@ -1,89 +1,39 @@
-// Changed require → import
+    // Chapter.model.js
 import mongoose from "mongoose";
 
-const chapterSchema = new mongoose.Schema(
+const ChapterSchema = new mongoose.Schema(
   {
-    // Reference to Book
-    bookId: {
-      type: mongoose.Schema.Types.ObjectId,
-      ref: "Book",
-      required: true,
-    },
-    recordNumber: {
-      type: String,
-      required: true,
-    },
-    bookNumber: {
-      type: String,
-      required: true,
-    },
+    // Parent link (recommended for safe joins)
+    bookId: { type: mongoose.Schema.Types.ObjectId, ref: "Book", required: true, index: true },
 
-    // 📘 Chapter Info
-    chapterNumber: {
-      type: String, // Format: CHNo 1.00, CHNo 2.00, etc.
-      required: true,
-    },
-    chapterName: {
-      type: String,
-      required: true,
-    },
+    // Book identity mirrors (optional but helpful for display/legacy)
+    mBookNo: { type: String, required: true, trim: true, index: true },
+    sBookNo: { type: String, required: true, trim: true, index: true },
+    bookGroupNo: { type: String, required: true, trim: true, index: true },
 
-    // 🔵 Chapter Tag Info
-    chapterTag: {
-      groupType: {
-        type: String,
-        required: true,
-      },
-      tagMainVersionId: {
-        type: String,
-        required: true,
-      },
-      tagVersionHId: {
-        type: String,
-        required: true,
-        minlength: 1,
-        maxlength: 10000,
-      },
-      tagVersionEId: {
-        type: String,
-        required: true,
-        minlength: 1,
-        maxlength: 10000,
-      },
-    },
+    // Chapter identity inside the book
+    chapNo: { type: Number, required: true, min: 1, index: true },
 
-    // Chapter Content Tag Info
-    contentTag: {
-      groupType: {
-        type: String,
-        required: true,
-      },
-      tagMainVersionId: {
-        type: String,
-        required: true,
-      },
-      tagVersionHId: {
-        type: String,
-        minlength: 1,
-        maxlength: 10000,
-      },
-      tagVersionEId: {
-        type: String,
-        minlength: 1,
-        maxlength: 10000,
-      },
-    },
+  // Chapter content
+    dStructureCode: { type: String, required: true, trim: true }, // dropdown selection (CT, AT, etc.) 
+    dsCodeText: { type: String, default: "", trim: true }, // the text written for that dropdown code
 
-    // Chapter Content Text
-    content: {
-      type: String,
-      required: true,
-    },
+
+   /* chapterTitle: { type: String, required: true, trim: true },    
+    chapterIntroduction: { type: String, default: "", trim: true },    */
+
+    // Tracking for your “last record” concept
+    mRecNo: { type: Number, default: 0, min: 0 },
+    sRecNo: { type: Number, default: 0, min: 0 },
+
+    // Status control
+    status: { type: String, enum: ["DRAFT", "ACTIVE", "HOLD"], default: "DRAFT", index: true }
   },
-  {
-    timestamps: true,
-  }
+  { timestamps: true }
 );
 
-// Changed module.exports → export default
-export default mongoose.model("Chapter", chapterSchema);
+// Uniqueness: a chapter number cannot repeat inside same book
+ChapterSchema.index({ bookId: 1, chapNo: 1 }, { unique: true });
+
+export default mongoose.model("Chapter", ChapterSchema);
+  

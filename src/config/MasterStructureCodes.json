@@ -1,0 +1,39 @@
+{
+  "masterCode": "CHAPTER_STRUCTURE_CODES_V1",
+  "version": "1.0",
+  "limits": { "maxCodes": 20, "columns": 2, "rows": 10 },
+  "defaults": { "defaultCode": "CT" },
+  "uiContract": {
+    "selectorType": "twoColumnRadioPanel",
+    "confirmationLineTemplate": "Selected: {code} — {label} — {desc}"
+  },
+  "notes": {
+    "storageRule": "DB stores only dStructureCode + dsCodeText (plus ids/numbers/status).",
+    "presentationRule": "Labels/order/desc are for UI + publish rendering; not stored in DB schema."
+  },
+  "items": [
+    { "code": "BT", "label": "Book Title",        "desc": "Auto from selected Book",                 "column": "LEFT",  "order": 10,  "source": "SYSTEM", "ui": { "control": "readonly" } },
+
+    { "code": "CT", "label": "Chapter Title",     "desc": "Title of the chapter (mandatory)",        "column": "LEFT",  "order": 20,  "source": "USER",   "ui": { "control": "radioText", "requiredText": true } },
+    { "code": "CI", "label": "Chapter Intro",     "desc": "Short introduction to the chapter",       "column": "LEFT",  "order": 30,  "source": "USER",   "ui": { "control": "radioText" } },
+    { "code": "AT", "label": "Author Thought",    "desc": "Author’s note / thought",                 "column": "LEFT",  "order": 40,  "source": "USER",   "ui": { "control": "radioText" } },
+    { "code": "HD", "label": "Heading",           "desc": "Section heading (recommended text)",      "column": "LEFT",  "order": 50,  "source": "USER",   "ui": { "control": "radioText", "requiredText": false } },
+    { "code": "SB", "label": "Sub-Heading",       "desc": "Sub-heading under a heading",             "column": "LEFT",  "order": 60,  "source": "USER",   "ui": { "control": "radioText" } },
+    { "code": "QO", "label": "Quote",             "desc": "Quotation or highlighted saying",         "column": "LEFT",  "order": 70,  "source": "USER",   "ui": { "control": "radioText" } },
+    { "code": "OB", "label": "Observation",       "desc": "Key observation / insight",               "column": "LEFT",  "order": 80,  "source": "USER",   "ui": { "control": "radioText" } },
+    { "code": "BG", "label": "Background",        "desc": "Background context",                      "column": "LEFT",  "order": 90,  "source": "USER",   "ui": { "control": "radioText" } },
+    { "code": "PR", "label": "Purpose",           "desc": "Purpose / objective of this section",     "column": "LEFT",  "order": 100, "source": "USER",   "ui": { "control": "radioText" } },
+
+    { "code": "TX", "label": "Main Text",         "desc": "Main content / body text",                "column": "RIGHT", "order": 110, "source": "USER",   "ui": { "control": "radioText" } },
+    { "code": "EX", "label": "Example",           "desc": "Example to explain the concept",          "column": "RIGHT", "order": 120, "source": "USER",   "ui": { "control": "radioText" } },
+    { "code": "NT", "label": "Note",              "desc": "Important note / reminder",               "column": "RIGHT", "order": 130, "source": "USER",   "ui": { "control": "radioText" } },
+    { "code": "TP", "label": "Tip",               "desc": "Practical tip for the reader",            "column": "RIGHT", "order": 140, "source": "USER",   "ui": { "control": "radioText" } },
+    { "code": "WR", "label": "Warning",           "desc": "Caution / warning statement",             "column": "RIGHT", "order": 150, "source": "USER",   "ui": { "control": "radioText" } },
+    { "code": "IL", "label": "Illustration",      "desc": "Illustration reference (text placeholder)","column": "RIGHT", "order": 160, "source": "USER",   "ui": { "control": "radioText" } },
+    { "code": "QA", "label": "Q & A",             "desc": "Question and answer block",               "column": "RIGHT", "order": 170, "source": "USER",   "ui": { "control": "radioText" } },
+    { "code": "CS", "label": "Case Study",        "desc": "Case study / scenario",                   "column": "RIGHT", "order": 180, "source": "USER",   "ui": { "control": "radioText" } },
+    { "code": "SM", "label": "Summary",           "desc": "Short summary of the section/chapter",    "column": "RIGHT", "order": 190, "source": "USER",   "ui": { "control": "radioText" } },
+
+    { "code": "RK", "label": "Record Key",        "desc": "System record tracking (auto)",           "column": "RIGHT", "order": 200, "source": "SYSTEM", "ui": { "control": "readonly" } }
+  ]
+}

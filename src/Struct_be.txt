@@ -1,0 +1,45 @@
+Folder PATH listing for volume Recovery drive
+Volume serial number is 8E2B-5164
+D:.
+|   Struct_be.txt
+|   
++---config
+|       db.js
+|       loadMasterStructureCodes.js
+|       MasterStructureCodes.json
+|       
++---controllers
+|       authController.js
+|       bookController.js
+|       chapterController.js
+|       tagsController.js
+|       
++---middleware
+|       authMiddleware.js
+|       
++---models
+|   |   Book.js
+|   |   bookInsert.js
+|   |   Chapter.js
+|   |   Tags.js
+|   |   User.js
+|   |   
+|   \---.idea
+|           .gitignore
+|           models.iml
+|           modules.xml
+|           vcs.xml
+|           workspace.xml
+|           
++---routes
+|       authRoutes.js
+|       bookRoutes.js
+|       chapterRoutes.js
+|       tagsRoutes.js
+|       
++---services
+|       book.service.js
+|       email.service.js
+|       M_structure.servise.js
+|       
+\---utils

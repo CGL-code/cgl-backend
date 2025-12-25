@@ -1,0 +1,11 @@
+import express from "express";
+
+/*import { getMasterStructureCodes } from "../controllers/configController.js";*/
+
+import MasterStructureCodes from "../config/loadMasterStructureCodes.js";
+
+const router = express.Router();
+
+router.get("/master-structure-codes", getMasterStructureCodes);
+
+export default router;

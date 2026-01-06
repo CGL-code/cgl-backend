@@ -1,176 +1,218 @@
-// Changed require → import
-import Chapter from "../models/Chapter.js";   // was: const Chapter = require("../models/Chapter");
-import Book from "../models/Book.js";         // was: const Book = require("../models/Book");
+import Chapter from "../models/Chapter.js";
+import Book from "../models/book.js";
 
-// Generate next chapter number: CHNo 1.00, CHNo 2.00, ...
-const generateChapterNumber = async (bookId) => {
-  const count = await Chapter.countDocuments({ bookId });
-  const number = (count + 1).toFixed(2); // 1.00, 2.00, etc.
-  return `CHNo ${number}`;
+/* =========================================================
+   Helper: Get Next Chapter Number
+   ========================================================= */
+const getNextChapterNo = async (bookId) => {
+  const last = await Chapter.findOne({ bookId })
+    .sort({ chapNo: -1 })
+    .lean();
+
+  if (!last) return 1;
+  return last.chapNo + 1;
 };
 
-// Create a new chapter (auto fetch recordNumber and bookNumber from Book)
-export const createChapter = async (req, res) => {   // Changed exports.createChapter → export const createChapter
+/* =========================================================
+   Helper: Get Next Record Numbers
+   ========================================================= */
+const getNextRecordNumbers = async (bookId, chapNo) => {
+  const last = await Chapter.findOne({ bookId, chapNo })
+    .sort({ mRecNo: -1, sRecNo: -1 })
+    .lean();
+
+  if (!last) {
+    return { mRecNo: 10, sRecNo: 1 };
+  }
+
+  return {
+    mRecNo: last.mRecNo + 10,
+    sRecNo: 1,
+  };
+};
+
+/* =========================================================
+   WINDOW 1: Create Chapter (BT + CT)
+   ========================================================= */
+export const createChapterWindow1 = async (req, res) => {
   try {
-    const { bookId, chapterName, chapterTag, contentTag, content } = req.body;
-
-    // Fetch book info
-    const book = await Book.findById(bookId);
-    if (!book) {
-      return res.status(404).json({
-        success: false,
-        message: "Book not found with the given bookId",
-      });
-    }
-
-    // Generate chapter number
-    const chapterNumber = await generateChapterNumber(bookId);
-
-    // Create chapter document
-    const newChapter = new Chapter({
+    const {
       bookId,
-      recordNumber: book.recordNumber, // pulled from Book
-      bookNumber: book.bookNumber,     // pulled from Book
-      chapterNumber,
-      chapterName,
-      chapterTag,
-      contentTag,
-      content,
+      chapNo, // optional (admin override)
+      chapterTitle,
+    } = req.body;
+
+    if (!bookId || !chapterTitle) {
+      return res.status(400).json({ error: "Required fields missing" });
+    }
+
+    const book = await Book.findById(bookId).lean();
+    if (!book) {
+      return res.status(404).json({ error: "Book not found" });
+    }
+
+    const finalChapNo = chapNo
+      ? Number(chapNo)
+      : await getNextChapterNo(bookId);
+
+    // Prevent duplicate chapter
+    const exists = await Chapter.findOne({ bookId, chapNo: finalChapNo });
+    if (exists) {
+      return res.status(400).json({ error: "Chapter already exists" });
+    }
+
+    // ---- BT record ----
+    const BT = new Chapter({
+      bookId,
+      mBookNo: book.mBookNo,
+      sBookNo: book.sBookNo,
+      bookGroupNo: book.bookGroupNo,
+      chapNo: finalChapNo,
+      dStructureCode: "BT",
+      dsCodeText: { type: "text", value: book.title },
+      mRecNo: 10,
+      sRecNo: 1,
+      status: "IN_PROGRESS",
     });
 
-    await newChapter.save();
+    // ---- CT record ----
+    const CT = new Chapter({
+      bookId,
+      mBookNo: book.mBookNo,
+      sBookNo: book.sBookNo,
+      bookGroupNo: book.bookGroupNo,
+      chapNo: finalChapNo,
+      dStructureCode: "CT",
+      dsCodeText: { type: "text", value: chapterTitle },
+      mRecNo: 10,
+      sRecNo: 2,
+      status: "IN_PROGRESS",
+    });
 
-    res.status(201).json({
-      success: true,
-      message: "Chapter created successfully",
-      chapter: newChapter,
+    await BT.save();
+    await CT.save();
+
+    res.json({
+      message: "Chapter Window 1 saved",
+      chapNo: finalChapNo,
+      chapNoFormatted: String(finalChapNo).padStart(3, "0"),
     });
-  } catch (error) {
-    console.error("Create Chapter Error:", error);
-    res.status(500).json({
-      success: false,
-      message: "Server error while creating chapter",
-    });
+  } catch (err) {
+    console.error("createChapterWindow1:", err.message);
+    res.status(500).json({ error: "Failed to save chapter window 1" });
   }
 };
 
-// 📥 Get all chapters (optionally filter by bookId)
-export const getChapters = async (req, res) => {   // Changed exports.getChapters → export const getChapters
+/* =========================================================
+   WINDOW 2: Save DSCode Record
+   ========================================================= */
+export const saveChapterRecord = async (req, res) => {
   try {
-    const { bookId } = req.query;
-    const filter = bookId ? { bookId } : {};
+    const {
+      bookId,
+      chapNo,
+      dStructureCode,
+      dsCodeText, // TipTap JSON
+    } = req.body;
 
-    const chapters = await Chapter.find(filter).sort({ createdAt: 1 });
+    if (!bookId || !chapNo || !dStructureCode || !dsCodeText) {
+      return res.status(400).json({ error: "Required fields missing" });
+    }
 
-    res.status(200).json({
-      success: true,
-      chapters,
-    });
-  } catch (error) {
-    console.error("Get Chapters Error:", error);
-    res.status(500).json({
-      success: false,
-      message: "Server error while fetching chapters",
-    });
-  }
-};
-
-// 📘 Get single chapter by ID
-export const getChapterById = async (req, res) => {   // Changed exports.getChapterById → export const getChapterById
-  try {
-    const chapter = await Chapter.findById(req.params.id);
-
-    if (!chapter) {
-      return res.status(404).json({
-        success: false,
-        message: "Chapter not found",
+    if (["BT", "CT"].includes(dStructureCode)) {
+      return res.status(400).json({
+        error: "BT / CT cannot be created in Window 2",
       });
     }
 
-    res.status(200).json({
-      success: true,
-      chapter,
+    const book = await Book.findById(bookId).lean();
+    if (!book) {
+      return res.status(404).json({ error: "Book not found" });
+    }
+
+    const { mRecNo, sRecNo } = await getNextRecordNumbers(bookId, chapNo);
+
+    const record = new Chapter({
+      bookId,
+      mBookNo: book.mBookNo,
+      sBookNo: book.sBookNo,
+      bookGroupNo: book.bookGroupNo,
+      chapNo,
+      dStructureCode,
+      dsCodeText,
+      mRecNo,
+      sRecNo,
+      status: "IN_PROGRESS",
     });
-  } catch (error) {
-    console.error("Get Chapter By ID Error:", error);
-    res.status(500).json({
-      success: false,
-      message: "Server error while fetching chapter",
+
+    await record.save();
+
+    res.json({
+      message: "Chapter record saved",
+      record,
+      recordNo: `${String(mRecNo).padStart(4, "0")}-${String(sRecNo).padStart(2, "0")}`,
     });
+  } catch (err) {
+    console.error("saveChapterRecord:", err.message);
+    res.status(500).json({ error: "Failed to save chapter record" });
   }
 };
 
-// ✏️ Update a chapter by ID
-export const updateChapter = async (req, res) => {   // Changed exports.updateChapter → export const updateChapter
+/* =========================================================
+   LIST Chapter Data Table
+   ========================================================= */
+export const listChapterData = async (req, res) => {
   try {
-    const updatedChapter = await Chapter.findByIdAndUpdate(
-      req.params.id,
-      req.body,
-      { new: true }
+    const { bookId, chapNo } = req.params;
+
+    const rows = await Chapter.find({ bookId, chapNo })
+      .sort({ mRecNo: 1, sRecNo: 1 })
+      .lean();
+
+    res.json(
+      rows.map((r) => ({
+        ...r,
+        chapNoFormatted: String(r.chapNo).padStart(3, "0"),
+        recordNo: `${String(r.mRecNo).padStart(4, "0")}-${String(r.sRecNo).padStart(2, "0")}`,
+      }))
+    );
+  } catch (err) {
+    console.error("listChapterData:", err.message);
+    res.status(500).json({ error: "Failed to list chapter data" });
+  }
+};
+
+/* =========================================================
+   FINALISE Chapter
+   ========================================================= */
+export const finaliseChapter = async (req, res) => {
+  try {
+    const { bookId, chapNo } = req.params;
+
+    await Chapter.updateMany(
+      { bookId, chapNo },
+      { status: "FINALISED" }
     );
 
-    if (!updatedChapter) {
-      return res.status(404).json({
-        success: false,
-        message: "Chapter not found",
-      });
-    }
-
-    res.status(200).json({
-      success: true,
-      message: "Chapter updated successfully",
-      chapter: updatedChapter,
-    });
-  } catch (error) {
-    console.error("Update Chapter Error:", error);
-    res.status(500).json({
-      success: false,
-      message: "Server error while updating chapter",
-    });
+    res.json({ message: "Chapter finalised successfully" });
+  } catch (err) {
+    console.error("finaliseChapter:", err.message);
+    res.status(500).json({ error: "Failed to finalise chapter" });
   }
 };
 
-// ❌ Delete a chapter by ID
-export const deleteChapter = async (req, res) => {   // Changed exports.deleteChapter → export const deleteChapter
+/* =========================================================
+   DELETE Chapter
+   ========================================================= */
+export const deleteChapter = async (req, res) => {
   try {
-    const deletedChapter = await Chapter.findByIdAndDelete(req.params.id);
+    const { bookId, chapNo } = req.params;
 
-    if (!deletedChapter) {
-      return res.status(404).json({
-        success: false,
-        message: "Chapter not found",
-      });
-    }
+    await Chapter.deleteMany({ bookId, chapNo });
 
-    res.status(200).json({
-      success: true,
-      message: "Chapter deleted successfully",
-    });
-  } catch (error) {
-    console.error("Delete Chapter Error:", error);
-    res.status(500).json({
-      success: false,
-      message: "Server error while deleting chapter",
-    });
-  }
-};
-
-// Get chapter count for a specific book
-export const getChapterCountByBookId = async (req, res) => {   // Changed exports.getChapterCountByBookId → export const getChapterCountByBookId
-  try {
-    const { bookId } = req.params;
-
-    const count = await Chapter.countDocuments({ bookId });
-
-    res.status(200).json({
-      success: true,
-      count,
-    });
-  } catch (error) {
-    console.error("Get Chapter Count Error:", error);
-    res.status(500).json({
-      success: false,
-      message: "Server error while fetching chapter count",
-    });
+    res.json({ message: "Chapter deleted completely" });
+  } catch (err) {
+    console.error("deleteChapter:", err.message);
+    res.status(500).json({ error: "Failed to delete chapter" });
   }
 };

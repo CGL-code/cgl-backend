@@ -1,31 +1,27 @@
 import express from "express";
 import {
-  createChapter,
-  getChapters,
-  getChapterById,
-  updateChapter,
+  createChapterWindow1,
+  saveChapterRecord,
+  listChapterData,
+  finaliseChapter,
   deleteChapter,
-  getChapterCountByBookId,
 } from "../controllers/chapterController.js";
 
 const router = express.Router();
 
-// ✅ Create Chapter
-router.post("/", createChapter);
+/* Window 1 */
+router.post("/chapters/window1", createChapterWindow1);
 
-// ✅ Get All Chapters (optionally by bookId)
-router.get("/", getChapters);
+/* Window 2 */
+router.post("/chapters/record", saveChapterRecord);
 
-// ✅ Get Single Chapter by ID
-router.get("/:id", getChapterById);
+/* View Chapter Data Table */
+router.get("/chapters/:bookId/:chapNo", listChapterData);
 
-// ✅ Update Chapter
-router.put("/:id", updateChapter);
+/* Finalise */
+router.put("/chapters/:bookId/:chapNo/finalise", finaliseChapter);
 
-// ✅ Delete Chapter
-router.delete("/:id", deleteChapter);
-
-// ✅ Chapter count by bookId
-router.get("/count/:bookId", getChapterCountByBookId);
+/* Delete */
+router.delete("/chapters/:bookId/:chapNo", deleteChapter);
 
 export default router;

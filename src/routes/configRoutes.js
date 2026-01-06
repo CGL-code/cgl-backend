@@ -1,8 +1,8 @@
 import express from "express";
-import { getMasterStructureCodes } from "../controllers/configController.js";
+import { getChapterStructureCodes } from "../controllers/configController.js";
 
 const router = express.Router();
 
-router.get("/master-structure-codes", getMasterStructureCodes);
+router.get("/chapter-structure-codes", getChapterStructureCodes);
 
 export default router;

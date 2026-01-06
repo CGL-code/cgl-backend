@@ -18,6 +18,10 @@ const ChapterSchema = new mongoose.Schema(
     dStructureCode: { type: String, required: true, trim: true }, // dropdown selection (CT, AT, etc.) 
     dsCodeText: { type: String, default: "", trim: true }, // the text written for that dropdown code
 
+    // --- Semantic Cabinet (meaning layer) ---
+    semanticId: { type: String, default: "", trim: true, index: true },      // SEM01, SEM02
+    semanticDsCode: { type: String, default: "", trim: true, index: true },  // DS001, DS010
+
 
    /* chapterTitle: { type: String, required: true, trim: true },    
     chapterIntroduction: { type: String, default: "", trim: true },    */

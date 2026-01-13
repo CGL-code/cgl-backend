@@ -9,6 +9,8 @@ import bookRoutes from "./src/routes/bookRoutes.js";
 import tagsRoutes from "./src/routes/tagsRoutes.js";
 import chapterRoutes from "./src/routes/chapterRoutes.js";
 import configRoutes from "./src/routes/configRoutes.js";   // ✅ ADDED
+import dscodeRoutes from "./src/routes/dscode.routes.js";
+
 
 dotenv.config();
 
@@ -24,6 +26,8 @@ app.use("/api/book", bookRoutes);
 app.use("/api/tags", tagsRoutes);
 app.use("/api/chapters", chapterRoutes);
 app.use("/api/config", configRoutes);   // ✅ ADDED
+app.use("/api/dscode", dscodeRoutes);
+
 
 // MongoDB Connection
 mongoose

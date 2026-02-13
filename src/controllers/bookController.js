@@ -15,7 +15,7 @@ const getNextRegularNumbers = async () => {
   }
 
   return {
-    mBookNo: lastBook.mBookNo + 5,
+    mBookNo: lastBook.mBookNo + 2,
     sBookNo: lastBook.sBookNo + 5,
   };
 };

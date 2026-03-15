@@ -5,65 +5,130 @@ import slugify from "slugify";
 /* =========================================================
    Helper: Get Next Regular Numbers
    ========================================================= */
+// const getNextRegularNumbers = async () => {
+//   const lastBook = await Book.findOne({ typeOfEntry: "regular" })
+//     .sort({ mBookNo: -1, sBookNo: -1 })
+//     .lean();
+
+//   if (!lastBook) {
+//     return { mBookNo: 1, sBookNo: 1 };
+//   }
+
+//   return {
+//     mBookNo: lastBook.mBookNo + 2,
+//     sBookNo: lastBook.sBookNo + 5,
+//   };
+// };
+
 const getNextRegularNumbers = async () => {
-  const lastBook = await Book.findOne({ typeOfEntry: "regular" })
-    .sort({ mBookNo: -1, sBookNo: -1 })
-    .lean();
 
-  if (!lastBook) {
-    return { mBookNo: 1, sBookNo: 1 };
-  }
+ const lastBook = await Book.findOne({
+   typeOfEntry: "regular"
+ })
+ .sort({ mBookNo: -1 })
+ .lean();
 
-  return {
-    mBookNo: lastBook.mBookNo + 2,
-    sBookNo: lastBook.sBookNo + 5,
-  };
+ if (!lastBook) {
+   return {
+     mBookNo: 10,
+     sBookNo: 5
+   };
+ }
+
+ return {
+   mBookNo: lastBook.mBookNo + 10,
+   sBookNo: 5
+ };
+
 };
 
 /* =========================================================
    Helper: Calculate Deliberate Insert Numbers
    ========================================================= */
+// const calculateInsertNumbers = async (refMBookNo, refSBookNo) => {
+//   const refBook = await Book.findOne({
+//     mBookNo: refMBookNo,
+//     sBookNo: refSBookNo,
+//   }).lean();
+
+//   if (!refBook) {
+//     throw new Error("Reference book not found.");
+//   }
+
+//   const newMBookNo = refBook.mBookNo + 1;
+//   const newSBookNo = refBook.sBookNo + 1;
+
+//   const nextBook = await Book.findOne({
+//     $or: [
+//       { mBookNo: { $gt: refMBookNo } },
+//       {
+//         mBookNo: refMBookNo,
+//         sBookNo: { $gt: refSBookNo },
+//       },
+//     ],
+//   })
+//     .sort({ mBookNo: 1, sBookNo: 1 })
+//     .lean();
+
+//   let warning = false;
+//   if (
+//     nextBook &&
+//     (newMBookNo > nextBook.mBookNo ||
+//       (newMBookNo === nextBook.mBookNo &&
+//         newSBookNo >= nextBook.sBookNo))
+//   ) {
+//     warning = true;
+//   }
+
+//   return {
+//     warning,
+//     mBookNo: newMBookNo,
+//     sBookNo: newSBookNo,
+//     refBookTitle: refBook.title,
+//   };
+// };
+
 const calculateInsertNumbers = async (refMBookNo, refSBookNo) => {
-  const refBook = await Book.findOne({
-    mBookNo: refMBookNo,
-    sBookNo: refSBookNo,
-  }).lean();
 
-  if (!refBook) {
-    throw new Error("Reference book not found.");
-  }
+ const refBook = await Book.findOne({
+   mBookNo: refMBookNo,
+   sBookNo: refSBookNo
+ }).lean();
 
-  const newMBookNo = refBook.mBookNo + 1;
-  const newSBookNo = refBook.sBookNo + 1;
+ if (!refBook) {
+   throw new Error("Reference book not found.");
+ }
 
-  const nextBook = await Book.findOne({
-    $or: [
-      { mBookNo: { $gt: refMBookNo } },
-      {
-        mBookNo: refMBookNo,
-        sBookNo: { $gt: refSBookNo },
-      },
-    ],
-  })
-    .sort({ mBookNo: 1, sBookNo: 1 })
-    .lean();
+ const nextBook = await Book.findOne({
+   mBookNo: { $gt: refMBookNo }
+ })
+ .sort({ mBookNo: 1 })
+ .lean();
 
-  let warning = false;
-  if (
-    nextBook &&
-    (newMBookNo > nextBook.mBookNo ||
-      (newMBookNo === nextBook.mBookNo &&
-        newSBookNo >= nextBook.sBookNo))
-  ) {
-    warning = true;
-  }
+ const newMBookNo = refBook.mBookNo + 1;
 
-  return {
-    warning,
-    mBookNo: newMBookNo,
-    sBookNo: newSBookNo,
-    refBookTitle: refBook.title,
-  };
+ let newSBookNo = 10;
+
+ const lastInsert = await Book.findOne({
+   mBookNo: newMBookNo
+ })
+ .sort({ sBookNo: -1 });
+
+ if (lastInsert) {
+   newSBookNo = lastInsert.sBookNo + 5;
+ }
+
+ if (newSBookNo > 95) {
+   throw new Error("Maximum insert capacity reached between books.");
+ }
+
+ return {
+   warning: false,
+   mBookNo: newMBookNo,
+   sBookNo: newSBookNo,
+   refBookTitle: refBook.title
+ };
+
 };
 
 /* =========================================================
@@ -131,6 +196,7 @@ export const saveBook = async (req, res) => {
       mBookNo,
       sBookNo,
       bookGroupNo,
+      section,
       title,
       introParas,
     } = req.body;
@@ -180,6 +246,7 @@ export const saveBook = async (req, res) => {
       mBookNo: Number(mBookNo),
       sBookNo: Number(sBookNo),
       bookGroupNo: Number(bookGroupNo) || 0,
+      section: Number(section) || 0,
       title,
       introParas: introParas || "",
       slug,

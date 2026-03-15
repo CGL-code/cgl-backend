@@ -20,6 +20,7 @@ const BookSchema = new Schema(
     title: { type: String, required: true, trim: true },
     introParas: { type: String, default: "", trim: true },
     bookGroupNo: { type: Number, default: 0 },
+    section: { type: Number, default: 0 },
     btCode: { type: String, trim: true, default: "CGL" },
     isActive: { type: Boolean, default: true },
     tags: [{ type: String, trim: true }],

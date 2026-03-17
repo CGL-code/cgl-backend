@@ -26,6 +26,10 @@ const BookSchema = new Schema(
     tags: [{ type: String, trim: true }],
     slug: { type: String, unique: true, sparse: true },
     meta: { createdBy: { type: String, default: "" }, updatedBy: { type: String, default: "" } },
+    reason: {
+  type: String,
+  trim: true,
+},
   },
   { timestamps: true, toJSON: { virtuals: true }, toObject: { virtuals: true } }
 );

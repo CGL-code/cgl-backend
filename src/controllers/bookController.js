@@ -199,6 +199,7 @@ export const saveBook = async (req, res) => {
       section,
       title,
       introParas,
+      reason,
     } = req.body;
 
     if (
@@ -249,6 +250,7 @@ export const saveBook = async (req, res) => {
       section: Number(section) || 0,
       title,
       introParas: introParas || "",
+       reason: reason || "",
       slug,
     });
 
